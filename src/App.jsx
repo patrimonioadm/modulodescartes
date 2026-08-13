@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import {
   LogIn, LogOut, Plus, Users, FileText, LayoutDashboard, CheckCircle2,
   XCircle, Trash2, Filter, Printer, ShieldCheck, Search, ChevronLeft,
-  ImageOff, UserPlus, AlertTriangle, Loader2, Upload, Camera
+  ImageOff, UserPlus, AlertTriangle, Loader2, Upload, Camera, X
 } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 
@@ -121,6 +121,98 @@ function LoginView({ onLoginError }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Câmera embutida (evita que o Android encerre a aba em segundo      */
+/* plano ao abrir o app de câmera do sistema)                          */
+/* ------------------------------------------------------------------ */
+
+function CameraCapture({ onCapture, onClose }) {
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setError("Este navegador não suporta câmera embutida. Use 'Escolher da galeria'.");
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        });
+        if (!active) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+        }
+        setReady(true);
+      } catch (err) {
+        setError(
+          err?.name === "NotAllowedError"
+            ? "Permissão de câmera negada. Libere o acesso à câmera nas configurações do site e tente de novo."
+            : "Não foi possível acessar a câmera. Use 'Escolher da galeria'."
+        );
+      }
+    })();
+    return () => {
+      active = false;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
+
+  function capturar() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const file = new File([blob], `descarte-${Date.now()}.jpg`, { type: "image/jpeg" });
+        onCapture(file);
+      },
+      "image/jpeg",
+      0.9
+    );
+  }
+
+  return (
+    <div className="camera-overlay">
+      <div className="camera-box">
+        <button type="button" className="icon-btn camera-close" onClick={onClose} title="Fechar">
+          <X size={20} />
+        </button>
+        {error ? (
+          <div className="camera-error">
+            <AlertTriangle size={20} />
+            <p>{error}</p>
+          </div>
+        ) : (
+          <video ref={videoRef} playsInline muted autoPlay className="camera-video" />
+        )}
+        <div className="camera-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          {!error && (
+            <button type="button" className="btn btn-primary" disabled={!ready} onClick={capturar}>
+              <Camera size={16} /> Capturar foto
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Formulário: novo descarte                                          */
 /* ------------------------------------------------------------------ */
 
@@ -135,7 +227,7 @@ function NovoDescarteView({ currentUser, onCreate, notify, goTo }) {
   const [observacao, setObservacao] = useState("");
   const [aprovarJa, setAprovarJa] = useState(false);
   const [saving, setSaving] = useState(false);
-  const cameraInputRef = useRef(null);
+  const [showCamera, setShowCamera] = useState(false);
   const galleryInputRef = useRef(null);
   const lastAppliedFileRef = useRef(null);
 
@@ -199,7 +291,7 @@ function NovoDescarteView({ currentUser, onCreate, notify, goTo }) {
       await onCreate(record);
       notify("success", "Descarte registrado com sucesso.");
       setItem(""); setObservacao(""); setFotoFile(null); setFotoPreview(null); setAprovarJa(false);
-      if (cameraInputRef.current) cameraInputRef.current.value = "";
+      lastAppliedFileRef.current = null;
       if (galleryInputRef.current) galleryInputRef.current.value = "";
       goTo("painel");
     } catch (err) {
@@ -234,19 +326,9 @@ function NovoDescarteView({ currentUser, onCreate, notify, goTo }) {
         <div className="field">
           <span className="field-label">Foto (opcional)</span>
           <div className="file-input-row">
-            <label className="btn btn-ghost file-label">
+            <button type="button" className="btn btn-ghost" onClick={() => setShowCamera(true)}>
               <Camera size={15} /> Tirar foto agora
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleFileChange}
-                onInput={handleFileChange}
-                onClick={(e) => { e.currentTarget.value = ""; }}
-                className="overlay-file-input"
-              />
-            </label>
+            </button>
             <label className="btn btn-ghost file-label">
               <Upload size={15} /> Escolher da galeria
               <input
@@ -262,9 +344,15 @@ function NovoDescarteView({ currentUser, onCreate, notify, goTo }) {
             {fotoPreview && <img src={fotoPreview} alt="" className="thumb" />}
           </div>
           <p className="field-hint">
-            Se o Samsung Internet não abrir a câmera/galeria, confira se a permissão de Câmera do site está liberada em ⋮ → Configurações do site.
+            A câmera abre dentro do app (não pelo app de câmera do celular) para evitar que o Android encerre a página em segundo plano.
           </p>
         </div>
+        {showCamera && (
+          <CameraCapture
+            onCapture={(file) => { applyFile(file); setShowCamera(false); }}
+            onClose={() => setShowCamera(false)}
+          />
+        )}
         <Field label="Observação (opcional)">
           <textarea rows={3} value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Detalhes adicionais sobre o item ou o estado dele" />
         </Field>
@@ -879,6 +967,19 @@ function GlobalStyles() {
         position:absolute; inset:0; width:100%; height:100%;
         opacity:0; cursor:pointer; font-size:16px;
       }
+      .camera-overlay{
+        position:fixed; inset:0; background:rgba(15,20,17,0.92); z-index:100;
+        display:flex; align-items:center; justify-content:center; padding:16px;
+      }
+      .camera-box{ position:relative; width:100%; max-width:480px; background:var(--ink); border-radius:14px; overflow:hidden; }
+      .camera-close{ position:absolute; top:8px; right:8px; z-index:2; color:var(--white); background:rgba(0,0,0,0.35); }
+      .camera-close:hover{ background:rgba(0,0,0,0.55); }
+      .camera-video{ width:100%; max-height:70vh; display:block; background:#000; object-fit:cover; }
+      .camera-error{ display:flex; flex-direction:column; align-items:center; gap:10px; color:var(--white); padding:48px 20px; text-align:center; }
+      .camera-actions{ display:flex; gap:10px; padding:14px; background:var(--ink); }
+      .camera-actions .btn{ flex:1; }
+      .camera-actions .btn-ghost{ background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.2); color:var(--white); }
+      .camera-actions .btn-ghost:hover{ background:rgba(255,255,255,0.16); }
       .checkbox-row{ display:flex; align-items:center; gap:8px; font-size:.85rem; }
       .form-error{ display:flex; align-items:center; gap:6px; color:var(--rust); font-size:.8rem; margin:0; }
 
