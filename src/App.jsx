@@ -12,7 +12,7 @@ import { supabase } from "./supabaseClient.js";
 
 const CATEGORIAS = ["Acessórios", "Equipamentos de Manutenção", "Eventos", "Patrimônio", "Restaurante", "Outros"];
 const MOTIVOS = ["Desgaste Natural", "Quebra/Avaria", "Perda", "Outro"];
-const DESTINOS = ["Lixo Geral", "Reciclagem", "Doação", "Outro"];
+const DESTINOS = ["Lixo Geral", "Doação", "Outro"];
 
 const STATUS = {
   pendente: { label: "Pendente", color: "var(--amber)" },
