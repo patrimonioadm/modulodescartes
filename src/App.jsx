@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import {
   LogIn, LogOut, Plus, Users, FileText, LayoutDashboard, CheckCircle2,
   XCircle, Trash2, Filter, Printer, ShieldCheck, Search, ChevronLeft,
-  ImageOff, UserPlus, AlertTriangle, Loader2, Upload
+  ImageOff, UserPlus, AlertTriangle, Loader2, Upload, Camera
 } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 
@@ -135,11 +135,15 @@ function NovoDescarteView({ currentUser, onCreate, notify, goTo }) {
   const [observacao, setObservacao] = useState("");
   const [aprovarJa, setAprovarJa] = useState(false);
   const [saving, setSaving] = useState(false);
-  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
 
   function handleFileChange(e) {
     const f = e.target.files?.[0];
-    if (!f) return;
+    if (!f) {
+      notify("error", "Nenhuma imagem foi recebida do navegador. Tente novamente ou escolha a outra opção (câmera/galeria).");
+      return;
+    }
     setFotoFile(f);
     setFotoPreview(URL.createObjectURL(f));
   }
@@ -175,7 +179,8 @@ function NovoDescarteView({ currentUser, onCreate, notify, goTo }) {
       await onCreate(record);
       notify("success", "Descarte registrado com sucesso.");
       setItem(""); setObservacao(""); setFotoFile(null); setFotoPreview(null); setAprovarJa(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
+      if (galleryInputRef.current) galleryInputRef.current.value = "";
       goTo("painel");
     } catch (err) {
       notify("error", "Não foi possível registrar: " + err.message);
@@ -209,14 +214,26 @@ function NovoDescarteView({ currentUser, onCreate, notify, goTo }) {
         <div className="field">
           <span className="field-label">Foto (opcional)</span>
           <div className="file-input-row">
-            <label htmlFor="foto-descarte-input" className="btn btn-ghost file-label">
-              <Upload size={15} /> {fotoFile ? "Trocar foto" : "Escolher foto"}
+            <label htmlFor="foto-camera-input" className="btn btn-ghost file-label">
+              <Camera size={15} /> Tirar foto agora
+            </label>
+            <label htmlFor="foto-galeria-input" className="btn btn-ghost file-label">
+              <Upload size={15} /> Escolher da galeria
             </label>
             {fotoPreview && <img src={fotoPreview} alt="" className="thumb" />}
           </div>
           <input
-            id="foto-descarte-input"
-            ref={fileInputRef}
+            id="foto-camera-input"
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileChange}
+            className="visually-hidden-file"
+          />
+          <input
+            id="foto-galeria-input"
+            ref={galleryInputRef}
             type="file"
             accept="image/*"
             onChange={handleFileChange}
