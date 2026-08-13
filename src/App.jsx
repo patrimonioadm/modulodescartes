@@ -213,7 +213,7 @@ function NovoDescarteView({ currentUser, onCreate, notify, goTo }) {
             </button>
             {fotoPreview && <img src={fotoPreview} alt="" className="thumb" />}
           </div>
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} />
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} /> 
         </Field>
         <Field label="Observação (opcional)">
           <textarea rows={3} value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Detalhes adicionais sobre o item ou o estado dele" />
