@@ -10,9 +10,9 @@ import { supabase } from "./supabaseClient.js";
 /* Constantes de domínio                                              */
 /* ------------------------------------------------------------------ */
 
-const CATEGORIAS = ["Academia", "Acessórios", "Beach Tennis", "Futsal", "Outros"];
+const CATEGORIAS = ["Eventos", "Manutenção", "Patrimônio", "Restaurante", "Outros"];
 const MOTIVOS = ["Desgaste Natural", "Quebra/Avaria", "Perda", "Outro"];
-const DESTINOS = ["Lixo Geral", "Reciclagem", "Doação", "Outro"];
+const DESTINOS = ["Lixo Geral", "Doação", "Outro"];
 
 const STATUS = {
   pendente: { label: "Pendente", color: "var(--amber)" },
