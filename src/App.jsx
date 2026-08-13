@@ -137,6 +137,27 @@ function NovoDescarteView({ currentUser, onCreate, notify, goTo }) {
   const [saving, setSaving] = useState(false);
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
+  const lastAppliedFileRef = useRef(null);
+
+  function applyFile(f) {
+    if (!f) return;
+    // onChange e onInput podem disparar juntos em alguns WebViews;
+    // evita processar/duplicar toast para o mesmo arquivo.
+    if (
+      lastAppliedFileRef.current &&
+      lastAppliedFileRef.current.name === f.name &&
+      lastAppliedFileRef.current.lastModified === f.lastModified &&
+      lastAppliedFileRef.current.size === f.size
+    ) {
+      return;
+    }
+    lastAppliedFileRef.current = f;
+    setFotoFile(f);
+    setFotoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(f);
+    });
+  }
 
   function handleFileChange(e) {
     const f = e.target.files?.[0];
@@ -144,8 +165,7 @@ function NovoDescarteView({ currentUser, onCreate, notify, goTo }) {
       notify("error", "Nenhuma imagem foi recebida do navegador. Tente novamente ou escolha a outra opção (câmera/galeria).");
       return;
     }
-    setFotoFile(f);
-    setFotoPreview(URL.createObjectURL(f));
+    applyFile(f);
   }
 
   async function handleSubmit(e) {
@@ -214,31 +234,36 @@ function NovoDescarteView({ currentUser, onCreate, notify, goTo }) {
         <div className="field">
           <span className="field-label">Foto (opcional)</span>
           <div className="file-input-row">
-            <label htmlFor="foto-camera-input" className="btn btn-ghost file-label">
+            <label className="btn btn-ghost file-label">
               <Camera size={15} /> Tirar foto agora
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange}
+                onInput={handleFileChange}
+                onClick={(e) => { e.currentTarget.value = ""; }}
+                className="overlay-file-input"
+              />
             </label>
-            <label htmlFor="foto-galeria-input" className="btn btn-ghost file-label">
+            <label className="btn btn-ghost file-label">
               <Upload size={15} /> Escolher da galeria
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                onInput={handleFileChange}
+                onClick={(e) => { e.currentTarget.value = ""; }}
+                className="overlay-file-input"
+              />
             </label>
             {fotoPreview && <img src={fotoPreview} alt="" className="thumb" />}
           </div>
-          <input
-            id="foto-camera-input"
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileChange}
-            className="visually-hidden-file"
-          />
-          <input
-            id="foto-galeria-input"
-            ref={galleryInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="visually-hidden-file"
-          />
+          <p className="field-hint">
+            Se o Samsung Internet não abrir a câmera/galeria, confira se a permissão de Câmera do site está liberada em ⋮ → Configurações do site.
+          </p>
         </div>
         <Field label="Observação (opcional)">
           <textarea rows={3} value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Detalhes adicionais sobre o item ou o estado dele" />
@@ -849,10 +874,10 @@ function GlobalStyles() {
       .field input, .field select, .field textarea{ border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:.92rem; background:var(--paper); color:var(--ink); }
       .field input:focus, .field select:focus, .field textarea:focus{ background:var(--white); }
       .file-input-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-      .file-label{ display:inline-flex; }
-      .visually-hidden-file{
-        position:absolute; width:1px; height:1px; padding:0; margin:-1px;
-        overflow:hidden; white-space:nowrap; border:0; clip:rect(0,0,0,0);
+      .file-label{ display:inline-flex; position:relative; overflow:hidden; }
+      .overlay-file-input{
+        position:absolute; inset:0; width:100%; height:100%;
+        opacity:0; cursor:pointer; font-size:16px;
       }
       .checkbox-row{ display:flex; align-items:center; gap:8px; font-size:.85rem; }
       .form-error{ display:flex; align-items:center; gap:6px; color:var(--rust); font-size:.8rem; margin:0; }
