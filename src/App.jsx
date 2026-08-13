@@ -10,7 +10,7 @@ import { supabase } from "./supabaseClient.js";
 /* Constantes de domínio                                              */
 /* ------------------------------------------------------------------ */
 
-const CATEGORIAS = ["Acessórios", "Equipamentos de Manutenção", "Eventos", "Patrimônio", "Outros"];
+const CATEGORIAS = ["Acessórios", "Equipamentos de Manutenção", "Eventos", "Patrimônio", "Restaurante", "Outros"];
 const MOTIVOS = ["Desgaste Natural", "Quebra/Avaria", "Perda", "Outro"];
 const DESTINOS = ["Lixo Geral", "Reciclagem", "Doação", "Outro"];
 
