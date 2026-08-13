@@ -12,7 +12,7 @@ import { supabase } from "./supabaseClient.js";
 
 const CATEGORIAS = ["Acessórios", "Equipamentos de Manutenção", "Eventos", "Patrimônio", "Restaurante", "Outros"];
 const MOTIVOS = ["Desgaste Natural", "Quebra/Avaria", "Perda", "Outro"];
-const DESTINOS = ["Lixo Geral", "Reciclagem", "Doação", "Outro"];
+const DESTINOS = ["Lixo Geral", "Doação", "Outro"];
 
 const STATUS = {
   pendente: { label: "Pendente", color: "var(--amber)" },
@@ -206,14 +206,24 @@ function NovoDescarteView({ currentUser, onCreate, notify, goTo }) {
             {DESTINOS.map((d) => <option key={d}>{d}</option>)}
           </select>
         </Field>
-        <Field label="Foto (opcional)">
+        <Field>
+        <div className="field">
+          <span className="field-label">Foto (opcional)</span>
           <div className="file-input-row">
-            <button type="button" className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>
-              <Upload size={15} /> Escolher foto
-            </button>
+            <label htmlFor="foto-descarte-input" className="btn btn-ghost file-label">
+              <Upload size={15} /> {fotoFile ? "Trocar foto" : "Escolher foto"}
+            </label>
             {fotoPreview && <img src={fotoPreview} alt="" className="thumb" />}
           </div>
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} />
+          <input
+            id="foto-descarte-input"
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="visually-hidden-file"
+          />
+        </div>
         </Field>
         <Field label="Observação (opcional)">
           <textarea rows={3} value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Detalhes adicionais sobre o item ou o estado dele" />
