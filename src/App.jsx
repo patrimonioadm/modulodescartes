@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import {
   LogIn, LogOut, Plus, Users, FileText, LayoutDashboard, CheckCircle2,
   XCircle, Trash2, Filter, Printer, ShieldCheck, Search, ChevronLeft,
-  ImageOff, UserPlus, AlertTriangle, Loader2, Upload, Camera, X
+  ImageOff, UserPlus, AlertTriangle, Loader2, Upload, Camera, X, Lock
 } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 
@@ -704,6 +704,105 @@ function ReportSection({ title, items }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Minha Conta — troca de senha pelo próprio usuário                   */
+/* ------------------------------------------------------------------ */
+
+function MinhaContaView({ currentUser, notify }) {
+  const [senhaAtual, setSenhaAtual] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+
+    if (novaSenha.length < 6) {
+      setError("A nova senha precisa ter pelo menos 6 caracteres.");
+      return;
+    }
+    if (novaSenha !== confirmarSenha) {
+      setError("A confirmação não bate com a nova senha.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Confere a senha atual reautenticando, antes de trocar —
+      // evita que alguém com a sessão aberta em um aparelho troque a
+      // senha sem saber a atual.
+      const { error: authErr } = await supabase.auth.signInWithPassword({
+        email: currentUser.email,
+        password: senhaAtual,
+      });
+      if (authErr) {
+        setError("Senha atual incorreta.");
+        setSaving(false);
+        return;
+      }
+
+      const { error: updateErr } = await supabase.auth.updateUser({ password: novaSenha });
+      if (updateErr) throw updateErr;
+
+      notify("success", "Senha alterada com sucesso.");
+      setSenhaAtual(""); setNovaSenha(""); setConfirmarSenha("");
+    } catch (err) {
+      setError(err.message || "Não foi possível trocar a senha.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="view-pad">
+      <h2 className="view-title">Minha conta</h2>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <p className="account-info-row"><strong>Nome:</strong> {currentUser.nome}</p>
+        <p className="account-info-row"><strong>E-mail:</strong> {currentUser.email}</p>
+        <p className="account-info-row"><strong>Papel:</strong> {currentUser.papel === "admin" ? "Administrador" : "Colaborador"}</p>
+      </div>
+
+      <h3 className="subtitle"><Lock size={16} /> Trocar senha</h3>
+      <form onSubmit={handleSubmit} className="card form-grid">
+        <Field label="Senha atual">
+          <input
+            type="password"
+            required
+            value={senhaAtual}
+            onChange={(e) => setSenhaAtual(e.target.value)}
+            autoComplete="current-password"
+          />
+        </Field>
+        <Field label="Nova senha" hint="Mínimo de 6 caracteres.">
+          <input
+            type="password"
+            required
+            value={novaSenha}
+            onChange={(e) => setNovaSenha(e.target.value)}
+            autoComplete="new-password"
+          />
+        </Field>
+        <Field label="Confirmar nova senha">
+          <input
+            type="password"
+            required
+            value={confirmarSenha}
+            onChange={(e) => setConfirmarSenha(e.target.value)}
+            autoComplete="new-password"
+          />
+        </Field>
+        {error && <p className="form-error"><AlertTriangle size={14} /> {error}</p>}
+        <button type="submit" className="btn btn-primary btn-block" disabled={saving}>
+          {saving ? <Loader2 size={16} className="spin" /> : <Lock size={16} />} Salvar nova senha
+        </button>
+      </form>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Shell / navegação                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -712,6 +811,7 @@ const NAV_ITEMS = [
   { key: "novo", label: "Novo", icon: Plus },
   { key: "relatorio", label: "Relatório", icon: FileText },
   { key: "usuarios", label: "Usuários", icon: Users, adminOnly: true },
+  { key: "conta", label: "Minha Conta", icon: Lock },
 ];
 
 export default function App() {
@@ -874,6 +974,7 @@ export default function App() {
               {view === "usuarios" && currentUser.papel === "admin" && (
                 <UsuariosView users={users} currentUser={currentUser} onAdd={handleAddUser} onToggleAtivo={handleToggleAtivo} onChangeRole={handleChangeRole} notify={notify} />
               )}
+              {view === "conta" && <MinhaContaView currentUser={currentUser} notify={notify} />}
             </main>
           </div>
 
@@ -1034,6 +1135,10 @@ function GlobalStyles() {
       .user-email{ font-size:.75rem; color:#7C8A80; }
       .user-controls{ display:flex; align-items:center; gap:8px; }
       .user-controls select{ border:1px solid var(--line); border-radius:7px; padding:6px 8px; font-size:.78rem; background:var(--white); }
+
+      .account-info-row{ margin:0 0 6px; font-size:.88rem; color:#4A5750; }
+      .account-info-row:last-child{ margin-bottom:0; }
+      .account-info-row strong{ color:var(--ink); margin-right:4px; }
 
       .report-toolbar{ display:flex; justify-content:space-between; gap:10px; margin-bottom:14px; }
       .report-sheet{ background:var(--white); border:1px solid var(--line); border-radius:12px; padding:22px 20px; }
